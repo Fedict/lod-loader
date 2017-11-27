@@ -26,10 +26,13 @@
 package be.fedict.lodtools.loader;
 
 import be.fedict.lodtools.loader.health.RdfStoreHealthCheck;
+import be.fedict.lodtools.loader.helpers.ManagedProcessor;
 import be.fedict.lodtools.loader.helpers.ManagedRepositoryManager;
+import be.fedict.lodtools.loader.resources.UploadResource;
 
 import io.dropwizard.Application;
 import io.dropwizard.setup.Environment;
+import org.eclipse.rdf4j.repository.Repository;
 
 import org.eclipse.rdf4j.repository.manager.RemoteRepositoryManager;
 import org.eclipse.rdf4j.repository.manager.RepositoryProvider;
@@ -54,7 +57,7 @@ public class App extends Application<AppConfig> {
     public void run(AppConfig config, Environment env) {
 		
 		// Query and JSONLD frame readers
-		QueryReader qr = new QueryReader(config.getQueryRoot());
+		//QueryReader qr = new QueryReader(config.getQueryRoot());
 		
 		// repository
 		String endpoint = config.getSparqlPoint();
@@ -62,16 +65,26 @@ public class App extends Application<AppConfig> {
 				(RemoteRepositoryManager) RepositoryProvider.getRepositoryManager(endpoint);
 		if (config.getUsername() != null) {
 			mgr.setUsernameAndPassword(config.getUsername(), config.getPassword());
-			LOG.info("Using username and paswword");
+			LOG.info("Using username and pasword");
 		}
 		mgr.initialize();
 		
 		// Managed resource
 		env.lifecycle().manage(new ManagedRepositoryManager(mgr));	
-		
+
 		// Monitoring
-		RdfStoreHealthCheck check = new RdfStoreHealthCheck(mgr.getSystemRepository());
-		env.healthChecks().register("triplestore", check);
+		for (Repository repo: mgr.getAllRepositories()) {
+			RdfStoreHealthCheck check = new RdfStoreHealthCheck(repo);
+			env.healthChecks().register(repo.toString(), check);
+		}
+		
+		// Loader
+		for (Repository repo: mgr.getAllRepositories()) {
+			env.lifecycle().manage(new ManagedProcessor(mgr, repo.toString().toLowerCase()));
+		}
+		
+		// Upload page/resource
+		env.jersey().register(new UploadResource());
 	}
 	
 	/**
