@@ -26,20 +26,21 @@
 package be.fedict.lodtools.loader.helpers;
 
 
+import java.io.File;
 import java.io.IOException;
+
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
-
 import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.rdf4j.repository.Repository;
-
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.manager.RepositoryManager;
@@ -50,7 +51,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- *
+ * Process files uploaded to a directory
+ * 
  * @author Bart.Hanssens
  */
 public class DirProcessor implements Runnable {
@@ -61,21 +63,67 @@ public class DirProcessor implements Runnable {
 	private final Map<WatchKey,Path> keys = new HashMap();
 	
 	/**
-	 * Load file
+	 * Load (NTriples) file into RDF Store
 	 * 
 	 * @param file file to load
 	 * @return true upon success
 	 */
-	private boolean loadFile(String repoName, Path file) {
+	private boolean loadFile(String repoName, File file) {
 		LOG.info("Loading {} into {}", file, repoName);
+		
 		try(RepositoryConnection con = mgr.getRepository(repoName).getConnection()) {
 			con.begin();
-			con.add(file.toFile(), "", RDFFormat.NTRIPLES);
+			con.add(file, "", RDFFormat.NTRIPLES);
 			con.commit();
 			return true;
 		} catch (RepositoryException|RDFParseException|IOException ex) {
 			LOG.error(ex.getMessage());
 			return false;
+		}
+	}
+	
+	/**
+	 * Process contents of a zip file
+	 * 
+	 * @param repoName
+	 * @param tmpfile 
+	 */
+	private void processZip(String repoName, File tmpfile) {
+		boolean res = FileUtil.unzip(tmpfile);
+		if (res != false) {
+			File unzipDir = FileUtil.getUnzipDir(tmpfile);
+			for (File f: unzipDir.listFiles()) {
+				loadFile(repoName, f);
+			}
+			LOG.info("Done loading");
+		} else {
+			LOG.error("Unzip failed");
+		}
+	}
+	
+	/**
+	 * Process a file
+	 * 
+	 * @param repoName
+	 * @param file 
+	 */
+	private void processFile(String repoName, File file) {
+		try {
+			File tmpdir = Files.createTempDirectory(repoName).toFile();
+			File tmpfile = new File(tmpdir, file.getName());
+			LOG.info("Moving {} to {}", file, tmpfile);
+		
+			Files.move(file.toPath(), tmpfile.toPath());
+			
+			if (tmpfile.getName().endsWith(".zip")) {
+				processZip(repoName, tmpfile);
+			}
+			boolean res = tmpfile.delete();
+			if (res == false) {
+				LOG.warn("Could not delete {}", tmpfile);
+			}
+		} catch (IOException ex) {
+			LOG.error("Error unzipping to temp: {}", ex.getMessage());
 		}
 	}
 	
@@ -97,7 +145,7 @@ public class DirProcessor implements Runnable {
 					}
 					Path file = p.resolve(((WatchEvent<Path>)ev).context());
 					String repoName = p.getFileName().toString();
-					loadFile(repoName, file);
+					processFile(repoName, file.toFile());
 				}
 				key.reset();
 				key = serv.take();
@@ -109,7 +157,7 @@ public class DirProcessor implements Runnable {
 	}
 	
 	/**
-	 * Directory processor
+	 * Constructor
 	 * 
 	 * @param mgr
 	 * @param rootdir

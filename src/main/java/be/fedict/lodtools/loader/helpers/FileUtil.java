@@ -25,6 +25,7 @@
  */
 package be.fedict.lodtools.loader.helpers;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -36,6 +37,7 @@ import java.util.Comparator;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.http.HTTPRepository;
 
@@ -85,33 +87,34 @@ public class FileUtil {
 	/**
 	 * Get the path of the directory to unzip to
 	 * 
-	 * @param p
+	 * @param f
 	 * @return 
 	 */
-	private static Path getUnzipDir(Path p) {
-		String s = p.getFileName().toString();
-		if (! s.endsWith("zip")) {
+	public static File getUnzipDir(File f) {
+		String s = f.getPath();
+		if (! s.endsWith(".zip")) {
 			return null;
 		}
-		return Paths.get(s.replace(".zip", ""));
+		return new File(s.replace(".zip", ""));
 	}
 	
 	/**
 	 * Remove unzipped directory and files
 	 * 
-	 * @param p
+	 * @param f
 	 * @return 
 	 */
-	public static boolean remove(Path p) {
-		LOG.info("Removing {}", p);
+	public static boolean remove(File f) {
+		LOG.info("Removing {}", f);
 		
 		try {
-			Stream<Path> paths = Files.walk(getUnzipDir(p)).sorted(Comparator.reverseOrder());
+			Stream<Path> paths = Files.walk(getUnzipDir(f).toPath())
+									.sorted(Comparator.reverseOrder());
 			for (Path path: paths.toArray(Path[]::new)) {
 				Files.delete(path);
 			}
 		} catch (IOException ex) {
-			LOG.error("Error removing {} : {}", p, ex.getMessage());
+			LOG.error("Error removing {} : {}", f, ex.getMessage());
 			return false;
 		}
 		return true;
@@ -123,14 +126,16 @@ public class FileUtil {
 	 * @param p
 	 * @return 
 	 */
-	public static boolean unzip(Path p) {
+	public static boolean unzip(File p) {
 		LOG.info("Unzipping {}", p);
 		
-		Path d = getUnzipDir(p);
+		File d = getUnzipDir(p);
 		
-		try (ZipFile f = new ZipFile(p.toFile())) {
-			for(ZipEntry e: (ZipEntry[]) f.stream().toArray()) {
-				Path u = Paths.get(d.toFile().getAbsolutePath(), e.getName());
+		try (ZipFile f = new ZipFile(p)) {
+			Files.createDirectory(d.toPath());
+			
+			for(ZipEntry e: f.stream().toArray(ZipEntry[]::new)) {
+				Path u = Paths.get(d.getAbsolutePath(), e.getName());
 				try (InputStream is = f.getInputStream(e)) {
 					Files.copy(is, u);
 				}
