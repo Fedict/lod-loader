@@ -79,9 +79,7 @@ public class App extends Application<AppConfig> {
 		}
 		
 		// Loader
-		for (Repository repo: mgr.getAllRepositories()) {
-			env.lifecycle().manage(new ManagedProcessor(mgr, repo.toString().toLowerCase()));
-		}
+		env.lifecycle().manage(new ManagedProcessor(mgr, config.getProcessRoot()));
 		
 		// Upload page/resource
 		env.jersey().register(new UploadResource());

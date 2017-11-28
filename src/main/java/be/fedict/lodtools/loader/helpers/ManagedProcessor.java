@@ -27,21 +27,13 @@ package be.fedict.lodtools.loader.helpers;
 
 import io.dropwizard.lifecycle.Managed;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import org.eclipse.rdf4j.repository.RepositoryConnection;
-import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.manager.RepositoryManager;
-import org.eclipse.rdf4j.rio.RDFFormat;
-import org.eclipse.rdf4j.rio.RDFParseException;
+
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -49,64 +41,28 @@ import org.slf4j.LoggerFactory;
  * @author Bart.Hanssens
  */
 public class ManagedProcessor implements Managed {
-	private final static org.slf4j.Logger LOG = LoggerFactory.getLogger(ManagedProcessor.class);
+	private final static Logger LOG = LoggerFactory.getLogger(ManagedProcessor.class);
 	
 	private final RepositoryManager mgr;
-	private final String repoName;
+	private final String rootdir;
+	
+	private final ExecutorService exec = Executors.newSingleThreadExecutor();
 
-	private static class DirProcess implements Runnable {
-		private final WatchService serv;
-		
-		public DirProcess(WatchService serv) {
-			this.serv = serv;
-		}
-
-		@Override
-		public void run() {
-			try {
-				WatchKey key = serv.take();
-				while (key != null) {
-					for(WatchEvent e: key.pollEvents()) {
-						
-					}
-					key.reset();
-					key = serv.take();
-				}
-			} catch (InterruptedException ex) {
-				LOG.error("Interrupted");
-			}
-		}
-	}
 	
 	@Override
 	public void start() throws Exception {
-		Path p = Paths.get(repoName);
-		WatchService serv = p.getFileSystem().newWatchService();
-		p.register(serv, StandardWatchEventKinds.ENTRY_CREATE);
+		DirProcessor processor = new DirProcessor(this.mgr, this.rootdir);
+		exec.submit(processor);
 	}
 
 	@Override
 	public void stop() throws Exception {
+		exec.awaitTermination(1, TimeUnit.MINUTES);
 	}
 
-	/**
-	 * Load file
-	 * 
-	 * @param file file to load
-	 * @return true upon success
-	 */
-	private boolean loadFile(Path file) {
-		try(RepositoryConnection con = mgr.getRepository(repoName).getConnection()) {
-			con.begin();
-			con.add(file.toFile(), "", RDFFormat.NTRIPLES);
-			con.commit();
-		} catch (RepositoryException|RDFParseException|IOException ex) {
-			//
-		}
-	}
 	
-	public ManagedProcessor(RepositoryManager mgr, String repoName) {
+	public ManagedProcessor(RepositoryManager mgr, String rootdir) {
 		this.mgr = mgr;
-		this.repoName = repoName;
+		this.rootdir = rootdir;
 	}
 }

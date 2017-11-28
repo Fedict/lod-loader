@@ -33,8 +33,11 @@ import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
+import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+import org.eclipse.rdf4j.repository.Repository;
+import org.eclipse.rdf4j.repository.http.HTTPRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -103,9 +106,10 @@ public class FileUtil {
 		LOG.info("Removing {}", p);
 		
 		try {
-			Files.walk(getUnzipDir(p)).map(Path::toFile)
-									.sorted(Comparator.reverseOrder())
-									.forEach(Files::delete);
+			Stream<Path> paths = Files.walk(getUnzipDir(p)).sorted(Comparator.reverseOrder());
+			for (Path path: paths.toArray(Path[]::new)) {
+				Files.delete(path);
+			}
 		} catch (IOException ex) {
 			LOG.error("Error removing {} : {}", p, ex.getMessage());
 			return false;
@@ -139,6 +143,12 @@ public class FileUtil {
 		return true;
 	}
 
+	public static String repoName(Repository repo) {
+		String name = ((HTTPRepository) repo).getRepositoryURL();
+		String[] split = name.split("/");
+		return (split.length > 0) ? split[split.length - 1] : "";
+	}
+	
 	/**
 	 * 
 	 * @param dir 

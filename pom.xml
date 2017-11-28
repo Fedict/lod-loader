@@ -23,11 +23,6 @@
             <artifactId>rdf4j-repository-manager</artifactId>
             <version>${rdf4j.version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-simple</artifactId>
-            <version>1.7.25</version>
-        </dependency>
     </dependencies>
     <build>
 	<plugins>
