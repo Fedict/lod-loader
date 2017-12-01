@@ -38,16 +38,20 @@ import javax.ws.rs.core.Response;
  *
  * @author Bart.Hanssens
  */
-@Path("/{repo}/upload")
+@Path("/_upload/{repo}")
 public class UploadResource {
+	private final FileUtil util;
+	
 	@PermitAll
 	@POST
 	@Consumes("application/zip")
 	public Response uploadZip(@PathParam("repo") String repo, InputStream is) {
-		FileUtil fu = new FileUtil(repo);
-		String p  = fu.store(is);
+		String p  = util.store(repo, is);
 		return (p != null) ? Response.accepted().build()
 							: Response.serverError().build();
 	}
-	
+
+	public UploadResource(FileUtil util) {
+		this.util = util;
+	}
 }

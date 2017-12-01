@@ -28,6 +28,7 @@ package be.fedict.lodtools.loader;
 import be.fedict.lodtools.loader.auth.DummyUser;
 import be.fedict.lodtools.loader.auth.UpdateAuth;
 import be.fedict.lodtools.loader.health.RdfStoreHealthCheck;
+import be.fedict.lodtools.loader.helpers.FileUtil;
 import be.fedict.lodtools.loader.helpers.ManagedProcessor;
 import be.fedict.lodtools.loader.helpers.ManagedRepositoryManager;
 import be.fedict.lodtools.loader.resources.UploadResource;
@@ -94,7 +95,8 @@ public class App extends Application<AppConfig> {
 							new UpdateAuth(auth.getUsername(), auth.getPassword()))
 						.buildAuthFilter()));
 		// Upload page/resource
-		env.jersey().register(new UploadResource());
+		env.jersey().register(new UploadResource(
+										new FileUtil(storage.getProcessRoot())));
 	}
 	
 	/**

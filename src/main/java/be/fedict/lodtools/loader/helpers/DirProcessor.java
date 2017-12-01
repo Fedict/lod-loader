@@ -58,6 +58,7 @@ import org.slf4j.LoggerFactory;
 public class DirProcessor implements Runnable {
 	private final static Logger LOG = LoggerFactory.getLogger(DirProcessor.class);
 
+	private final String rootdir;
 	private final RepositoryManager mgr;
 	private final WatchService serv;
 	private final Map<WatchKey,Path> keys = new HashMap();
@@ -99,6 +100,7 @@ public class DirProcessor implements Runnable {
 		} else {
 			LOG.error("Unzip failed");
 		}
+		FileUtil.remove(tmpfile);
 	}
 	
 	/**
@@ -109,16 +111,15 @@ public class DirProcessor implements Runnable {
 	 */
 	private void processFile(String repoName, File file) {
 		try {
-			File tmpdir = Files.createTempDirectory(repoName).toFile();
-			File tmpfile = new File(tmpdir, file.getName());
+			Path tmpfile = Paths.get(rootdir, repoName, "process", file.getName());
 			LOG.info("Moving {} to {}", file, tmpfile);
 		
-			Files.move(file.toPath(), tmpfile.toPath());
+			Files.move(file.toPath(), tmpfile);
 			
-			if (tmpfile.getName().endsWith(".zip")) {
-				processZip(repoName, tmpfile);
+			if (tmpfile.toFile().getName().endsWith(".zip")) {
+				processZip(repoName, tmpfile.toFile());
 			}
-			boolean res = tmpfile.delete();
+			boolean res = tmpfile.toFile().delete();
 			if (res == false) {
 				LOG.warn("Could not delete {}", tmpfile);
 			}
@@ -166,6 +167,7 @@ public class DirProcessor implements Runnable {
 	public DirProcessor(RepositoryManager mgr, String rootdir) throws IOException {
 		this.mgr = mgr;
 		this.serv = FileSystems.getDefault().newWatchService();
+		this.rootdir = rootdir;
 		LOG.info("Getting repo's");
 		
 		for (Repository repo: mgr.getAllRepositories()) {

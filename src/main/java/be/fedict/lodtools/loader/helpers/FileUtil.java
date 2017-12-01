@@ -28,10 +28,13 @@ package be.fedict.lodtools.loader.helpers;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.stream.Stream;
@@ -59,28 +62,26 @@ public class FileUtil {
 	/**
 	 * Store an uploaded file to a zip
 	 * 
-	 * @param is
-	 * @return
+	 * @param repo RDF repository
+	 * @param is input stream from uploaded file
+	 * @return local name of the uploaded file
 	 */
-	public String store(InputStream is) {
-		String stamp = LocalDate.now().format(DF);
+	public String store(String repo, InputStream is) {
+		String stamp = LocalDateTime.now().format(DF);
 
-		Path upload = Paths.get(dir, stamp + ".upload");
-		Path file = Paths.get(dir, stamp + ".zip");
+		Path file = Paths.get(dir, repo, stamp + ".zip");
+		Path upload = Paths.get(dir, repo, "upload", stamp + ".zip");
 		
 		LOG.info("Uploading {}", file);
-		
 		try {
-			Files.copy(is, upload);
-			Files.move(upload, file);
+			Files.copy(is, upload, StandardCopyOption.REPLACE_EXISTING);
+			Files.move(upload, file, StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException ex) {
-			LOG.error("Error creating or moving file, {}", ex.getMessage());
-		} finally {
-			try {
-				Files.deleteIfExists(upload);
+			LOG.error("Error creating upload file {}", ex.getMessage());
+		} try {
+			Files.deleteIfExists(upload);
 			} catch (IOException ex) {
 			}
-		}
 		return Files.exists(file) ? file.toString() : null;
 	}
 	
