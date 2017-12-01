@@ -25,12 +25,16 @@
  */
 package be.fedict.lodtools.loader;
 
+import be.fedict.lodtools.loader.auth.DummyUser;
+import be.fedict.lodtools.loader.auth.UpdateAuth;
 import be.fedict.lodtools.loader.health.RdfStoreHealthCheck;
 import be.fedict.lodtools.loader.helpers.ManagedProcessor;
 import be.fedict.lodtools.loader.helpers.ManagedRepositoryManager;
 import be.fedict.lodtools.loader.resources.UploadResource;
 
 import io.dropwizard.Application;
+import io.dropwizard.auth.AuthDynamicFeature;
+import io.dropwizard.auth.basic.BasicCredentialAuthFilter;
 import io.dropwizard.setup.Environment;
 import org.eclipse.rdf4j.repository.Repository;
 
@@ -60,12 +64,13 @@ public class App extends Application<AppConfig> {
 		//QueryReader qr = new QueryReader(config.getQueryRoot());
 		
 		// repository
-		String endpoint = config.getSparqlPoint();
+		StorageConfig storage = config.getStorageConfig();
+		String endpoint = storage.getSparqlPoint();
 		RemoteRepositoryManager mgr = 
 				(RemoteRepositoryManager) RepositoryProvider.getRepositoryManager(endpoint);
-		if (config.getUsername() != null) {
-			mgr.setUsernameAndPassword(config.getUsername(), config.getPassword());
-			LOG.info("Using username and pasword");
+		if (storage.getUsername() != null) {
+			mgr.setUsernameAndPassword(storage.getUsername(), storage.getPassword());
+			LOG.info("Using username and pasword for storage");
 		}
 		mgr.initialize();
 		
@@ -79,8 +84,15 @@ public class App extends Application<AppConfig> {
 		}
 		
 		// Loader
-		env.lifecycle().manage(new ManagedProcessor(mgr, config.getProcessRoot()));
+		env.lifecycle().manage(new ManagedProcessor(mgr, storage.getProcessRoot()));
 		
+		// Authentication
+		AuthConfig auth = config.getAuthConfig();
+		env.jersey().register(new AuthDynamicFeature(
+				new BasicCredentialAuthFilter.Builder<DummyUser>()
+						.setAuthenticator(
+							new UpdateAuth(auth.getUsername(), auth.getPassword()))
+						.buildAuthFilter()));
 		// Upload page/resource
 		env.jersey().register(new UploadResource());
 	}

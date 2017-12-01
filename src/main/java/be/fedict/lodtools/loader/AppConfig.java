@@ -28,60 +28,39 @@ package be.fedict.lodtools.loader;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.dropwizard.Configuration;
+import javax.validation.Valid;
+import javax.validation.constraints.NotNull;
 
-import org.hibernate.validator.constraints.URL;
 
 /**
  *
  * @author Bart.Hanssens
  */
 public class AppConfig extends Configuration {
-	@URL
-	private String sparqlPoint;
-
-	private String username;
-	private String password;
-
-	private String processRoot;
+	@Valid
+    @NotNull
+    private StorageConfig storagecfg = new StorageConfig();
+	@Valid
+    @NotNull
+    private AuthConfig authcfg = new AuthConfig();
 	
+    @JsonProperty("storage")
+    public StorageConfig getStorageConfig() {
+        return storagecfg;
+    }
 
-	@JsonProperty
-	public String getSparqlPoint() {
-		return sparqlPoint;
-	}
-	
-	@JsonProperty
-	public void setSparqlPoint(String sparqlPoint) {
-		this.sparqlPoint = sparqlPoint;
-	}	
-
-	@JsonProperty
-	public String getUsername() {
-		return username;
+    @JsonProperty("storage")
+    public void setStorageConfig(StorageConfig storagecfg) {
+        this.storagecfg = storagecfg;
 	}
 	
-	@JsonProperty
-	public void setUsername(String username) {
-		this.username = username;
-	}
+    @JsonProperty("auth")
+    public AuthConfig getAuthConfig() {
+        return authcfg;
+    }
 
-	@JsonProperty
-	public String getPassword() {
-		return password;
-	}
-
-	@JsonProperty
-	public void setPassword(String password) {
-		this.password = password;
-	}
-	
-	@JsonProperty
-	public String getProcessRoot() {
-		return processRoot;
-	}
-
-	@JsonProperty
-	public void setProcessRoot(String processRoot) {
-		this.processRoot = processRoot;
+    @JsonProperty("auth")
+    public void setAuthConfig(AuthConfig authcfg) {
+        this.authcfg = authcfg;
 	}
 }

@@ -23,31 +23,43 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-package be.fedict.lodtools.loader.resources;
+package be.fedict.lodtools.loader.auth;
 
-import be.fedict.lodtools.loader.helpers.FileUtil;
-import java.io.InputStream;
-import javax.annotation.security.PermitAll;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.Response;
+import io.dropwizard.auth.AuthenticationException;
+import io.dropwizard.auth.Authenticator;
+import io.dropwizard.auth.basic.BasicCredentials;
+
+import java.util.Optional;
+
 
 /**
  *
  * @author Bart.Hanssens
  */
-@Path("/{repo}/upload")
-public class UploadResource {
-	@PermitAll
-	@POST
-	@Consumes("application/zip")
-	public Response uploadZip(@PathParam("repo") String repo, InputStream is) {
-		FileUtil fu = new FileUtil(repo);
-		String p  = fu.store(is);
-		return (p != null) ? Response.accepted().build()
-							: Response.serverError().build();
+public class UpdateAuth implements Authenticator<BasicCredentials, DummyUser> {
+	private final String username;
+	private final String password;
+	
+	@Override
+	public Optional<DummyUser> authenticate(BasicCredentials c) throws AuthenticationException {
+		// no username / login required
+		if (c.getUsername() == null || c.getUsername().isEmpty()) {
+			return Optional.of(new DummyUser());
+		}
+		if (c.getUsername().equals(username) && c.getPassword().equals(password)) {
+			return Optional.of(new DummyUser());
+		} 
+		return Optional.empty();
 	}
 	
+	/**
+	 * Constructor
+	 * 
+	 * @param username
+	 * @param password 
+	 */
+	public UpdateAuth(String username, String password) {
+		this.username = username;
+		this.password = password;
+	}
 }

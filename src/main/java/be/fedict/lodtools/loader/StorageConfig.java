@@ -23,31 +23,65 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-package be.fedict.lodtools.loader.resources;
+package be.fedict.lodtools.loader;
 
-import be.fedict.lodtools.loader.helpers.FileUtil;
-import java.io.InputStream;
-import javax.annotation.security.PermitAll;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.core.Response;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import javax.validation.constraints.NotNull;
+import org.hibernate.validator.constraints.URL;
 
 /**
  *
  * @author Bart.Hanssens
  */
-@Path("/{repo}/upload")
-public class UploadResource {
-	@PermitAll
-	@POST
-	@Consumes("application/zip")
-	public Response uploadZip(@PathParam("repo") String repo, InputStream is) {
-		FileUtil fu = new FileUtil(repo);
-		String p  = fu.store(is);
-		return (p != null) ? Response.accepted().build()
-							: Response.serverError().build();
+public class StorageConfig {
+	@NotNull
+	@URL
+	private String sparqlPoint;
+
+	private String username;
+	private String password;
+	
+    @NotNull
+	private String processRoot;
+	
+
+	@JsonProperty
+	public String getSparqlPoint() {
+		return sparqlPoint;
 	}
 	
+	@JsonProperty
+	public void setSparqlPoint(String sparqlPoint) {
+		this.sparqlPoint = sparqlPoint;
+	}	
+
+	@JsonProperty
+	public String getUsername() {
+		return username;
+	}
+	
+	@JsonProperty
+	public void setUsername(String username) {
+		this.username = username;
+	}
+
+	@JsonProperty
+	public String getPassword() {
+		return password;
+	}
+
+	@JsonProperty
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	
+	@JsonProperty
+	public String getProcessRoot() {
+		return processRoot;
+	}
+
+	@JsonProperty
+	public void setProcessRoot(String processRoot) {
+		this.processRoot = processRoot;
+	}
 }
