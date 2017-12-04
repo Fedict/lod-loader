@@ -33,6 +33,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
@@ -113,8 +114,8 @@ public class DirProcessor implements Runnable {
 		try {
 			Path tmpfile = Paths.get(rootdir, repoName, "process", file.getName());
 			LOG.info("Moving {} to {}", file, tmpfile);
-		
-			Files.move(file.toPath(), tmpfile);
+
+			Files.move(file.toPath(), tmpfile, StandardCopyOption.ATOMIC_MOVE);
 			
 			if (tmpfile.toFile().getName().endsWith(".zip")) {
 				processZip(repoName, tmpfile.toFile());

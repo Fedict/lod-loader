@@ -77,12 +77,13 @@ public class FileUtil {
 			Files.copy(is, upload, StandardCopyOption.REPLACE_EXISTING);
 			Files.move(upload, file, StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException ex) {
+			file = null;
 			LOG.error("Error creating upload file {}", ex.getMessage());
-		} try {
-			Files.deleteIfExists(upload);
+			} try {
+				Files.deleteIfExists(upload);
 			} catch (IOException ex) {
-			}
-		return Files.exists(file) ? file.toString() : null;
+		}
+		return (file != null) ? file.toString() : null;
 	}
 	
 	/**
