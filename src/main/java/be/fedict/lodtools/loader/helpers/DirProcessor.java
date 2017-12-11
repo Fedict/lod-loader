@@ -28,7 +28,7 @@ package be.fedict.lodtools.loader.helpers;
 
 import java.io.File;
 import java.io.IOException;
-
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,8 +38,13 @@ import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
 import java.nio.file.WatchService;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+import org.eclipse.rdf4j.query.Update;
 
 import org.eclipse.rdf4j.repository.Repository;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
@@ -59,10 +64,35 @@ import org.slf4j.LoggerFactory;
 public class DirProcessor implements Runnable {
 	private final static Logger LOG = LoggerFactory.getLogger(DirProcessor.class);
 
+	private final ValueFactory F = SimpleValueFactory.getInstance();
+	
 	private final String rootdir;
 	private final RepositoryManager mgr;
 	private final WatchService serv;
 	private final Map<WatchKey,Path> keys = new HashMap();
+	
+	
+	private void queryFile(RepositoryConnection con, File file) throws IOException {
+		LOG.info("Processing query file {}", file);
+		
+		String s = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+		Update upd = con.prepareUpdate(s);
+			
+		// Check if there is a file with a list of ids for this query 
+		File datafile = new File(file.getName().replaceFirst(".qr", ".data"));
+		if (datafile.exists()) {
+			LOG.info("Found data file {}", datafile);
+			for(String id: Files.readAllLines(datafile.toPath())) {
+				upd.clearBindings();
+				upd.setBinding("id", id.startsWith("<") ? F.createIRI(id) 
+														: F.createLiteral(id));
+				upd.execute();
+			}
+		} else {
+			LOG.info("Query without data file");		
+			upd.execute();
+		}
+	}
 	
 	/**
 	 * Load (NTriples) file into RDF Store
@@ -70,18 +100,10 @@ public class DirProcessor implements Runnable {
 	 * @param file file to load
 	 * @return true upon success
 	 */
-	private boolean loadFile(String repoName, File file) {
-		LOG.info("Loading {} into {}", file, repoName);
+	private void loadFile(RepositoryConnection con, File file) throws IOException {
+		LOG.info("Loading {}", file);
 		
-		try(RepositoryConnection con = mgr.getRepository(repoName).getConnection()) {
-			con.begin();
-			con.add(file, "", RDFFormat.NTRIPLES);
-			con.commit();
-			return true;
-		} catch (RepositoryException|RDFParseException|IOException ex) {
-			LOG.error(ex.getMessage());
-			return false;
-		}
+		con.add(file, "", RDFFormat.NTRIPLES);
 	}
 	
 	/**
@@ -92,12 +114,29 @@ public class DirProcessor implements Runnable {
 	 */
 	private void processZip(String repoName, File tmpfile) {
 		boolean res = FileUtil.unzip(tmpfile);
+		
 		if (res != false) {
 			File unzipDir = FileUtil.getUnzipDir(tmpfile);
-			for (File f: unzipDir.listFiles()) {
-				loadFile(repoName, f);
+			File[] files = unzipDir.listFiles();
+			Arrays.sort(files);
+			
+			LOG.info("Loading {} files into {}", files.length, repoName);
+			try(RepositoryConnection con = mgr.getRepository(repoName).getConnection()) {
+				con.begin();
+				for (File f: files) {
+					String name = f.getName();
+					if (name.endsWith("nt")) {
+						loadFile(con, f);
+					} 
+					if (name.endsWith("qr")) {
+						queryFile(con, f);
+					}
+				}
+				con.commit();
+				LOG.info("Done loading");
+			} catch (RepositoryException|RDFParseException|IOException ex) {
+				LOG.error("Failure loading {}", ex.getMessage());
 			}
-			LOG.info("Done loading");
 		} else {
 			LOG.error("Unzip failed");
 		}
