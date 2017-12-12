@@ -77,7 +77,8 @@ public class DirProcessor implements Runnable {
 		
 		String s = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
 		Update upd = con.prepareUpdate(s);
-			
+		LOG.info("Query {}", upd);
+		
 		// Check if there is a file with a list of ids for this query 
 		File datafile = new File(file.getPath().replaceFirst(".qr", ".csv"));
 		if (datafile.exists()) {
@@ -217,6 +218,7 @@ public class DirProcessor implements Runnable {
 		for (Repository repo: mgr.getAllRepositories()) {
 			String name = FileUtil.repoName(repo);
 			Path p = Paths.get(rootdir, name);
+	
 			if (p.toFile().exists() && p.toFile().isDirectory()) {
 				WatchKey wk = p.register(serv, StandardWatchEventKinds.ENTRY_CREATE);
 				keys.put(wk, p);

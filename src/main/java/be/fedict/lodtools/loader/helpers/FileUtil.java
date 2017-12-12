@@ -28,14 +28,14 @@ package be.fedict.lodtools.loader.helpers;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.time.LocalDate;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+
 import java.util.Comparator;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -150,6 +150,12 @@ public class FileUtil {
 		return true;
 	}
 
+	/**
+	 * Hey name of the repository
+	 * 
+	 * @param repo repository
+	 * @return name as string
+	 */
 	public static String repoName(Repository repo) {
 		String name = ((HTTPRepository) repo).getRepositoryURL();
 		String[] split = name.split("/");
