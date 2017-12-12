@@ -1,0 +1,8 @@
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> 
+PREFIX rov: <http://www.w3.org/ns/regorg#> 
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#> 
+
+DELETE { ?id ?label ?o }
+WHERE { ?id ?label ?o .
+	VALUES ?label { rdfs:label skos:altLabel rov:legalName }
+}

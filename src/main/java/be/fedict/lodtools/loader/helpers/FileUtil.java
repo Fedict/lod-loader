@@ -101,6 +101,21 @@ public class FileUtil {
 	}
 	
 	/**
+	 * Get the name of the associated query file for a CSV
+	 * 
+	 * @param dir parent directory
+	 * @param f file name
+	 * @return query file
+	 */
+	public static File getQueryFile(File dir, File f) {
+		String s = f.getName();
+		if (! s.endsWith(".csv")) {
+			return null;
+		}
+		return new File(dir, s.replaceFirst(".csv", ".qr"));
+	}
+	
+	/**
 	 * Remove unzipped directory and files
 	 * 
 	 * @param f

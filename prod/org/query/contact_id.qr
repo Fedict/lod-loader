@@ -1,0 +1,6 @@
+PREFIX foaf: <http://xmlns.com/foaf/0.1/> 
+
+DELETE { ?id ?contact ?o } 
+WHERE { ?id ?contact ?o .
+	VALUES ?contact { foaf:mbox foaf:email foaf:homepage }
+}

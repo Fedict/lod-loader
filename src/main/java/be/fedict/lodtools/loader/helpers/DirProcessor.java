@@ -71,26 +71,38 @@ public class DirProcessor implements Runnable {
 	private final WatchService serv;
 	private final Map<WatchKey,Path> keys = new HashMap();
 	
-	
-	private void queryFile(RepositoryConnection con, File file) throws IOException {
-		LOG.info("Processing query file {}", file);
+	/**
+	 * Use CSV file as input for similarly named query file 
+	 * (either in the upload zip or as default query for this repository)
+	 * 
+	 * @param con repository connection
+	 * @param file CSV file
+	 * @param qryDir default query dir
+	 * @throws IOException 
+	 */
+	private void queryWithFile(RepositoryConnection con, File file, File qryDir) 
+															throws IOException {
+		LOG.info("Processing CSV file {}", file);
+
+		// Check if there is a query file in the zip, or use the default one
+		File qryfile = FileUtil.getQueryFile(file.getParentFile(), file);
+		if (!qryfile.exists()) {
+			LOG.warn("No query file {}, trying default one", qryfile);
+			qryfile = FileUtil.getQueryFile(qryDir, file);
+			if (!qryfile.exists()) {
+				LOG.warn("No default query file {}, ignore CSV", qryfile);
+				return;
+			}
+		}
 		
-		String s = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+		String s = new String(Files.readAllBytes(qryfile.toPath()), StandardCharsets.UTF_8);
 		Update upd = con.prepareUpdate(s);
 		LOG.info("Query {}", upd);
 		
-		// Check if there is a file with a list of ids for this query 
-		File datafile = new File(file.getPath().replaceFirst(".qr", ".csv"));
-		if (datafile.exists()) {
-			LOG.info("Found data file {}", datafile);
-			for(String id: Files.readAllLines(datafile.toPath())) {
-				upd.clearBindings();
-				upd.setBinding("id", id.startsWith("<") ? F.createIRI(id) 
+		for(String id: Files.readAllLines(file.toPath())) {
+			upd.clearBindings();
+			upd.setBinding("id", id.startsWith("<") ? F.createIRI(id) 
 														: F.createLiteral(id));
-				upd.execute();
-			}
-		} else {
-			LOG.info("Query without data file {}", datafile);		
 			upd.execute();
 		}
 	}
@@ -117,20 +129,23 @@ public class DirProcessor implements Runnable {
 		boolean res = FileUtil.unzip(tmpfile);
 		
 		if (res != false) {
+			File qryDir = new File(new File(this.rootdir, repoName), "query");
+			
 			File unzipDir = FileUtil.getUnzipDir(tmpfile);
 			File[] files = unzipDir.listFiles();
 			Arrays.sort(files);
 			
 			LOG.info("Loading {} files into {}", files.length, repoName);
+			
 			try(RepositoryConnection con = mgr.getRepository(repoName).getConnection()) {
 				con.begin();
 				for (File f: files) {
 					String name = f.getName();
-					if (name.endsWith("nt")) {
+					if (name.endsWith(".nt")) {
 						loadFile(con, f);
 					} 
-					if (name.endsWith("qr")) {
-						queryFile(con, f);
+					if (name.endsWith(".csv")) {
+						queryWithFile(con, f, qryDir);
 					}
 				}
 				con.commit();

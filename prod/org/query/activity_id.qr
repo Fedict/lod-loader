@@ -1,0 +1,3 @@
+PREFIX rov: <http://www.w3.org/ns/regorg#> 
+
+DELETE WHERE { ?id rov:orgActivity ?activity }
