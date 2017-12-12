@@ -79,7 +79,7 @@ public class DirProcessor implements Runnable {
 		Update upd = con.prepareUpdate(s);
 			
 		// Check if there is a file with a list of ids for this query 
-		File datafile = new File(file.getName().replaceFirst(".qr", ".data"));
+		File datafile = new File(file.getPath().replaceFirst(".qr", ".csv"));
 		if (datafile.exists()) {
 			LOG.info("Found data file {}", datafile);
 			for(String id: Files.readAllLines(datafile.toPath())) {
@@ -89,7 +89,7 @@ public class DirProcessor implements Runnable {
 				upd.execute();
 			}
 		} else {
-			LOG.info("Query without data file");		
+			LOG.info("Query without data file {}", datafile);		
 			upd.execute();
 		}
 	}
@@ -186,7 +186,12 @@ public class DirProcessor implements Runnable {
 					}
 					Path file = p.resolve(((WatchEvent<Path>)ev).context());
 					String repoName = p.getFileName().toString();
-					processFile(repoName, file.toFile());
+					
+					try {
+						processFile(repoName, file.toFile());
+					} catch (Exception e) {
+						LOG.error("Caught exception in dirprocessor");
+					}
 				}
 				key.reset();
 				key = serv.take();
@@ -199,7 +204,6 @@ public class DirProcessor implements Runnable {
 	
 	/**
 	 * Constructor
-	 * 
 	 * @param mgr
 	 * @param rootdir
 	 * @throws IOException 
