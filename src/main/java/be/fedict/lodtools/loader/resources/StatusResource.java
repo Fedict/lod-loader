@@ -42,26 +42,14 @@ import javax.ws.rs.core.Response;
  *
  * @author Bart.Hanssens
  */
-@Path("/_upload")
-public class UploadResource {
+@Path("/_status/{repo}/{file}")
+public class StatusResource {
 	private final FileUtil util;
 	
 	@PermitAll
-	@POST
-	@Path("/load/{repo}/{file}")
-	@Consumes("application/zip")
-	public Response upload(@PathParam("repo") String repo, 
-							@PathParam("file") String file, InputStream is) {
-		String p  = util.store(repo, is);
-		return (p != null) ? Response.accepted().build()
-							: Response.serverError().build();
-	}
-	
-	@PermitAll
 	@GET
-	@Path("/status/{repo}/{file}")
 	public Response status(@PathParam("repo") String repo, 
-							@PathParam("file") String file) {
+							@PathParam("file") String file, InputStream is) {
 		File f = new File(file);
 		if (FileUtil.getDoneFile(util.getDir(), repo, f).exists()) {
 			return Response.noContent().build();
@@ -77,7 +65,7 @@ public class UploadResource {
 	 * 
 	 * @param util 
 	 */
-	public UploadResource(FileUtil util) {
+	public StatusResource(FileUtil util) {
 		this.util = util;
 	}
 }

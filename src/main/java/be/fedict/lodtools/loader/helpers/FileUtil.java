@@ -60,6 +60,15 @@ public class FileUtil {
 	private final String dir;
 	
 	/**
+	 * Get processing directory
+	 * 
+	 * @return name of the directory
+	 */
+	public String getDir() {
+		return this.dir;
+	}
+	
+	/**
 	 * Store an uploaded file to a zip
 	 * 
 	 * @param repo RDF repository
@@ -79,18 +88,70 @@ public class FileUtil {
 		} catch (IOException ex) {
 			file = null;
 			LOG.error("Error creating upload file {}", ex.getMessage());
-			} try {
-				Files.deleteIfExists(upload);
-			} catch (IOException ex) {
+		} 
+		try {
+			Files.deleteIfExists(upload);
+		} catch (IOException ex) {
 		}
 		return (file != null) ? file.toString() : null;
 	}
 	
+
 	/**
-	 * Get the path of the directory to unzip to
+	 * Move file a to b in one atomic operation
 	 * 
+	 * @param from
+	 * @param to
+	 */
+	public static void move(File from, File to) {
+		try {
+			Files.move(from.toPath(), to.toPath(), StandardCopyOption.ATOMIC_MOVE);
+		} catch (IOException ex) {
+			LOG.error("Moving {} to {} failed: {}", from, to, ex.getMessage());
+		}
+	}
+
+	/**
+	 * Get directory with default queries
+	 * 
+	 * @param base root directory
+	 * @param repoName repository name
+	 * @return directory file
+	 */
+	public static File getQueryDir(String base, String repoName) {
+		return new File(base, repoName + File.separator + "query");
+	}
+		
+	/**
+	 * Get the file for the process directory
+	 * 
+	 * @param base root directory
+	 * @param repoName repository name
 	 * @param f
-	 * @return 
+	 * @return file
+	 */
+	public static File getProcessFile(String base, String repoName, File f) {
+		return getFile(base, repoName, "process", f);
+	}
+	
+	public static File getFailedFile(String base, String repoName, File f) {
+		return getFile(base, repoName, "failed", f)	;
+	}
+	
+	public static File getDoneFile(String base, String repoName, File f) {
+		return getFile(base, repoName, "done", f);	
+	}
+	
+	private static File getFile(String base, String repoName, String subdir, File f) {
+		return new File(base, repoName + File.separator + subdir 
+										+ File.separator + f.getName());
+	}
+		
+	/**
+	 * Get the path of the directory to unzip a file
+	 * 
+	 * @param f file
+	 * @return directory
 	 */
 	public static File getUnzipDir(File f) {
 		String s = f.getPath();

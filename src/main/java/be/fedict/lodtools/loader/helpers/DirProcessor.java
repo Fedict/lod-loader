@@ -25,7 +25,6 @@
  */
 package be.fedict.lodtools.loader.helpers;
 
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +32,6 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardWatchEventKinds;
 import java.nio.file.WatchEvent;
 import java.nio.file.WatchKey;
@@ -41,6 +39,7 @@ import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.LogManager;
 
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
@@ -86,8 +85,9 @@ public class DirProcessor implements Runnable {
 
 		// Check if there is a query file in the zip, or use the default one
 		File qryfile = FileUtil.getQueryFile(file.getParentFile(), file);
+		
 		if (!qryfile.exists()) {
-			LOG.warn("No query file {}, trying default one", qryfile);
+			LOG.info("No query file {}, trying default one", qryfile);
 			qryfile = FileUtil.getQueryFile(qryDir, file);
 			if (!qryfile.exists()) {
 				LOG.warn("No default query file {}, ignore CSV", qryfile);
@@ -99,6 +99,10 @@ public class DirProcessor implements Runnable {
 		Update upd = con.prepareUpdate(s);
 		LOG.info("Query {}", upd);
 		
+		long size = Files.size(file.toPath());
+		if (size == 0) {
+			LOG.warn("Zero {}");
+		}
 		for(String id: Files.readAllLines(file.toPath())) {
 			upd.clearBindings();
 			upd.setBinding("id", id.startsWith("<") ? F.createIRI(id) 
@@ -125,38 +129,41 @@ public class DirProcessor implements Runnable {
 	 * @param repoName
 	 * @param tmpfile 
 	 */
-	private void processZip(String repoName, File tmpfile) {
+	private boolean processZip(String repoName, File tmpfile) {
 		boolean res = FileUtil.unzip(tmpfile);
 		
-		if (res != false) {
-			File qryDir = new File(new File(this.rootdir, repoName), "query");
-			
-			File unzipDir = FileUtil.getUnzipDir(tmpfile);
-			File[] files = unzipDir.listFiles();
-			Arrays.sort(files);
-			
-			LOG.info("Loading {} files into {}", files.length, repoName);
-			
-			try(RepositoryConnection con = mgr.getRepository(repoName).getConnection()) {
-				con.begin();
-				for (File f: files) {
-					String name = f.getName();
-					if (name.endsWith(".nt")) {
-						loadFile(con, f);
-					} 
-					if (name.endsWith(".csv")) {
-						queryWithFile(con, f, qryDir);
-					}
-				}
-				con.commit();
-				LOG.info("Done loading");
-			} catch (RepositoryException|RDFParseException|IOException ex) {
-				LOG.error("Failure loading {}", ex.getMessage());
-			}
-		} else {
+		if (res == false) {
 			LOG.error("Unzip failed");
+			return res;
 		}
-		FileUtil.remove(tmpfile);
+		
+		File qryDir = FileUtil.getQueryDir(this.rootdir, repoName);
+		
+		File unzipDir = FileUtil.getUnzipDir(tmpfile);
+		File[] files = unzipDir.listFiles();
+		Arrays.sort(files);
+			
+		LOG.info("Loading {} files into {}", files.length, repoName);
+			
+		try(RepositoryConnection con = mgr.getRepository(repoName).getConnection()) {
+			con.begin();
+			for (File f: files) {
+				String name = f.getName();
+				if (name.endsWith(".nt")) {
+					loadFile(con, f);
+				} 
+				if (name.endsWith(".csv")) {
+					queryWithFile(con, f, qryDir);
+				}
+			}
+			con.commit();
+			res = true;
+			LOG.info("Done loading");
+		} catch (RepositoryException|RDFParseException|IOException ex) {
+			res = false;
+			LOG.error("Failure loading {} : {}", tmpfile.getName(), ex.getMessage());
+		}
+		return res;
 	}
 	
 	/**
@@ -166,24 +173,20 @@ public class DirProcessor implements Runnable {
 	 * @param file 
 	 */
 	private void processFile(String repoName, File file) {
-		try {
-			Path tmpfile = Paths.get(rootdir, repoName, "process", file.getName());
-			LOG.info("Moving {} to {}", file, tmpfile);
-
-			Files.move(file.toPath(), tmpfile, StandardCopyOption.ATOMIC_MOVE);
+		File tmpfile = FileUtil.getProcessFile(rootdir, repoName, file);
+		FileUtil.move(file, tmpfile);
 			
-			if (tmpfile.toFile().getName().endsWith(".zip")) {
-				processZip(repoName, tmpfile.toFile());
+		if (tmpfile.getName().endsWith(".zip")) {
+			if (processZip(repoName, tmpfile) == true) {
+				File done = FileUtil.getDoneFile(rootdir, repoName, file);
+				FileUtil.move(tmpfile, done);
+			} else {
+				File failed = FileUtil.getFailedFile(rootdir, repoName, file);
+				FileUtil.move(tmpfile, failed);
 			}
-			boolean res = tmpfile.toFile().delete();
-			if (res == false) {
-				LOG.warn("Could not delete {}", tmpfile);
-			}
-		} catch (IOException ex) {
-			LOG.error("Error unzipping to temp: {}", ex.getMessage());
 		}
 	}
-	
+
 	@Override
 	public void run() {
 		try {
