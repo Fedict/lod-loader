@@ -33,6 +33,8 @@ curl https://example.host/_upload/repo --basic -u userme:passme
 
 All the files in the ZIP will be part of the same transaction.
 
+It is recommended to pause a few seconds between submitting ZIPs.
+
 ## Files
 
 Files will be stored within the `processRoot` directory, using one subdirectory 
