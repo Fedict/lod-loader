@@ -136,7 +136,7 @@ public class DirProcessor implements Runnable {
 			return false;
 		}
 		
-		File qryDir = Paths.get(this.dir, repoName).toFile();
+		File qryDir = Paths.get(this.dir, repoName, FileUtil.DIR_QUERY).toFile();
 		
 		File unzipDir = FileUtil.getUnzipDir(tmpfile);
 		File[] files = unzipDir.listFiles();
@@ -152,6 +152,7 @@ public class DirProcessor implements Runnable {
 			
 			con.begin();
 			for (File f: files) {
+				con.isOpen();
 				String name = f.getName();
 				if (name.endsWith(".nt")) {
 					loadFile(con, f);
