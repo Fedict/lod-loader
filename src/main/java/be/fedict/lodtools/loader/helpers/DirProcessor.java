@@ -152,7 +152,6 @@ public class DirProcessor implements Runnable {
 			
 			con.begin();
 			for (File f: files) {
-				con.isOpen();
 				String name = f.getName();
 				if (name.endsWith(".nt")) {
 					loadFile(con, f);

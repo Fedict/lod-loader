@@ -27,13 +27,27 @@ e.g. a `file.zip` for repository `repo`,
 uploaded to `example.host` with basic HTTP authentication.
 
 ```
-curl https://example.host/_upload/repo --basic -u userme:passme 
+curl https://example.host/_upload/load/repo/file.zip --basic -u userme:passme 
 	    -X POST -H "Content-Type: application/zip" --data-binary @file.zip
 ```
 
-All the files in the ZIP will be part of the same transaction.
+All the files in the ZIP will be part of the same transaction, 
+which will be rolled back when there is an error in any of the files.
 
 It is recommended to pause a few seconds between submitting ZIPs.
+
+### Checking the status
+
+Submitting a file will via the POST request will return an HTTP status 202 (Accepted) 
+when the upload is completed. At this point the file isn't processed yet.
+
+To check the status, a GET request can be used, returning the process status.
+
+```
+curl https://example.host/_upload/load/repo/file.zip --basic -u userme:passme 
+	    -X GET -o /dev/null -s -w "%{http_code}"
+```
+
 
 ## Files
 
@@ -41,9 +55,12 @@ Files will be stored within the `processRoot` directory, using one subdirectory
 per repository (or "namespace" in Ontotext GraphDB speak).
 
 ```
-/processRoot/repo/process (temp directory when processing)
-/processRoot/repo/query   (optional dir with default queries)
 /processRoot/repo/upload  (upload directory)
+/processRoot/repo/process (temp directory when processing)
+/processRoot/repo/done    (successfully completed uploads)
+/processRoot/repo/failed  (failed uploads)
+/processRoot/repo/query   (optional dir with default queries)
+
 ```
 
 
