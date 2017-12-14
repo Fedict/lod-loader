@@ -29,6 +29,8 @@ import be.fedict.lodtools.loader.helpers.FileUtil;
 import java.io.File;
 
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.annotation.security.PermitAll;
 import javax.ws.rs.Consumes;
@@ -37,6 +39,7 @@ import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 /**
  *
@@ -44,15 +47,22 @@ import javax.ws.rs.core.Response;
  */
 @Path("/_upload")
 public class UploadResource {
+	private final static Map<String,Status> STATUS = new HashMap<>();
 	private final FileUtil util;
+	
+	static {
+		STATUS.put(FileUtil.DIR_DONE, Status.OK);
+		STATUS.put(FileUtil.DIR_FAILED , Status.INTERNAL_SERVER_ERROR);
+		STATUS.put(FileUtil.DIR_PROCESS, Status.ACCEPTED);
+	}
 	
 	@PermitAll
 	@POST
 	@Path("/load/{repo}/{file}")
 	@Consumes("application/zip")
 	public Response upload(@PathParam("repo") String repo, 
-							@PathParam("file") String file, InputStream is) {
-		String p  = util.store(repo, is);
+							@PathParam("file") String name, InputStream is) {
+		String p  = util.store(repo, is, name);
 		return (p != null) ? Response.accepted().build()
 							: Response.serverError().build();
 	}
@@ -63,13 +73,14 @@ public class UploadResource {
 	public Response status(@PathParam("repo") String repo, 
 							@PathParam("file") String file) {
 		File f = new File(file);
-		if (FileUtil.getDoneFile(util.getDir(), repo, f).exists()) {
-			return Response.noContent().build();
+		String root = util.getDir();
+		
+		for(String dir: STATUS.keySet()) {
+			if (FileUtil.getFile(root, repo, dir, f).exists()) {
+				return Response.status(STATUS.get(dir)).build();
+			}
 		}
-		if (FileUtil.getProcessFile(util.getDir(), repo, f).exists()) {
-			return Response.accepted().build();
-		}
-		return Response.serverError().build();
+		return Response.status(Status.NOT_FOUND).build();
 	}
 	
 	/**

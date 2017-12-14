@@ -28,6 +28,7 @@ package be.fedict.lodtools.loader.helpers;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -52,6 +53,13 @@ import org.slf4j.LoggerFactory;
  * @author Bart.Hanssens
  */
 public class FileUtil {
+	public final static String DIR_DONE = "done";
+	public final static String DIR_FAILED = "failed";
+	public final static String DIR_PROCESS = "process";
+	public final static String DIR_QUERY = "query";
+	
+	public final static String EXT_ZIP = ".zip";
+	
 	private final static Logger LOG = LoggerFactory.getLogger(FileUtil.class);
 	
 	private final static DateTimeFormatter DF = 
@@ -69,18 +77,17 @@ public class FileUtil {
 	}
 	
 	/**
-	 * Store an uploaded file to a zip
+	 * Store an uploaded file to the upload directory
 	 * 
-	 * @param repo RDF repository
-	 * @param is input stream from uploaded file
-	 * @return local name of the uploaded file
+	 * @param repo
+	 * @param is input stream
+	 * @param name
+	 * @return 
 	 */
-	public String store(String repo, InputStream is) {
-		String stamp = LocalDateTime.now().format(DF);
-
-		Path file = Paths.get(dir, repo, stamp + ".zip");
-		Path upload = Paths.get(dir, repo, "upload", stamp + ".zip");
-		
+	public String store(String repo, InputStream is, String name) {
+		Path file = Paths.get(dir, repo, name);
+		Path upload = Paths.get(dir, repo, "upload", name);
+				
 		LOG.info("Uploading {}", file);
 		try {
 			Files.copy(is, upload, StandardCopyOption.REPLACE_EXISTING);
@@ -94,6 +101,17 @@ public class FileUtil {
 		} catch (IOException ex) {
 		}
 		return (file != null) ? file.toString() : null;
+	}
+	
+	/**
+	 * Store an uploaded file to a zip
+	 * 
+	 * @param repo RDF repository
+	 * @param is input stream from uploaded file
+	 * @return local name of the uploaded file
+	 */
+	public String store(String repo, InputStream is) {
+		return store(repo, is, LocalDateTime.now().format(DF) + EXT_ZIP);
 	}
 	
 
@@ -110,41 +128,18 @@ public class FileUtil {
 			LOG.error("Moving {} to {} failed: {}", from, to, ex.getMessage());
 		}
 	}
-
+	
 	/**
-	 * Get directory with default queries
+	 * Get the full path to a file in a specific processing subdirectory 
 	 * 
 	 * @param base root directory
 	 * @param repoName repository name
-	 * @return directory file
-	 */
-	public static File getQueryDir(String base, String repoName) {
-		return new File(base, repoName + File.separator + "query");
-	}
-		
-	/**
-	 * Get the file for the process directory
-	 * 
-	 * @param base root directory
-	 * @param repoName repository name
-	 * @param f
+	 * @param subdir subdirectory
+	 * @param f file
 	 * @return file
 	 */
-	public static File getProcessFile(String base, String repoName, File f) {
-		return getFile(base, repoName, "process", f);
-	}
-	
-	public static File getFailedFile(String base, String repoName, File f) {
-		return getFile(base, repoName, "failed", f)	;
-	}
-	
-	public static File getDoneFile(String base, String repoName, File f) {
-		return getFile(base, repoName, "done", f);	
-	}
-	
-	private static File getFile(String base, String repoName, String subdir, File f) {
-		return new File(base, repoName + File.separator + subdir 
-										+ File.separator + f.getName());
+	public static File getFile(String base, String repoName, String subdir, File f) {
+		return Paths.get(base, repoName, subdir, f.getName()).toFile();
 	}
 		
 	/**
@@ -155,10 +150,10 @@ public class FileUtil {
 	 */
 	public static File getUnzipDir(File f) {
 		String s = f.getPath();
-		if (! s.endsWith(".zip")) {
+		if (! s.endsWith(EXT_ZIP)) {
 			return null;
 		}
-		return new File(s.replace(".zip", ""));
+		return new File(s.replace(EXT_ZIP, ""));
 	}
 	
 	/**

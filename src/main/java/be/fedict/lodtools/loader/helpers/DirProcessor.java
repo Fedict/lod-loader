@@ -39,7 +39,6 @@ import java.nio.file.WatchService;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.LogManager;
 
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
@@ -65,7 +64,7 @@ public class DirProcessor implements Runnable {
 
 	private final ValueFactory F = SimpleValueFactory.getInstance();
 	
-	private final String rootdir;
+	private final String dir;
 	private final RepositoryManager mgr;
 	private final WatchService serv;
 	private final Map<WatchKey,Path> keys = new HashMap();
@@ -134,10 +133,10 @@ public class DirProcessor implements Runnable {
 		
 		if (res == false) {
 			LOG.error("Unzip failed");
-			return res;
+			return false;
 		}
 		
-		File qryDir = FileUtil.getQueryDir(this.rootdir, repoName);
+		File qryDir = Paths.get(this.dir, repoName).toFile();
 		
 		File unzipDir = FileUtil.getUnzipDir(tmpfile);
 		File[] files = unzipDir.listFiles();
@@ -146,6 +145,11 @@ public class DirProcessor implements Runnable {
 		LOG.info("Loading {} files into {}", files.length, repoName);
 			
 		try(RepositoryConnection con = mgr.getRepository(repoName).getConnection()) {
+			if (con == null) {
+				LOG.error("No connection to {}", repoName);
+				return false;
+			}
+			
 			con.begin();
 			for (File f: files) {
 				String name = f.getName();
@@ -173,15 +177,15 @@ public class DirProcessor implements Runnable {
 	 * @param file 
 	 */
 	private void processFile(String repoName, File file) {
-		File tmpfile = FileUtil.getProcessFile(rootdir, repoName, file);
+		File tmpfile = FileUtil.getFile(dir, repoName, FileUtil.DIR_PROCESS, file);
 		FileUtil.move(file, tmpfile);
 			
-		if (tmpfile.getName().endsWith(".zip")) {
+		if (tmpfile.getName().endsWith(FileUtil.EXT_ZIP)) {
 			if (processZip(repoName, tmpfile) == true) {
-				File done = FileUtil.getDoneFile(rootdir, repoName, file);
+				File done = FileUtil.getFile(dir, repoName, FileUtil.DIR_DONE, file);
 				FileUtil.move(tmpfile, done);
 			} else {
-				File failed = FileUtil.getFailedFile(rootdir, repoName, file);
+				File failed = FileUtil.getFile(dir, repoName, FileUtil.DIR_FAILED, file);
 				FileUtil.move(tmpfile, failed);
 			}
 		}
@@ -223,19 +227,20 @@ public class DirProcessor implements Runnable {
 	
 	/**
 	 * Constructor
+	 * 
 	 * @param mgr
-	 * @param rootdir
+	 * @param dir
 	 * @throws IOException 
 	 */
-	public DirProcessor(RepositoryManager mgr, String rootdir) throws IOException {
+	public DirProcessor(RepositoryManager mgr, String dir) throws IOException {
 		this.mgr = mgr;
 		this.serv = FileSystems.getDefault().newWatchService();
-		this.rootdir = rootdir;
+		this.dir = dir;
 		LOG.info("Getting repo's");
 		
 		for (Repository repo: mgr.getAllRepositories()) {
 			String name = FileUtil.repoName(repo);
-			Path p = Paths.get(rootdir, name);
+			Path p = Paths.get(dir, name);
 	
 			if (p.toFile().exists() && p.toFile().isDirectory()) {
 				WatchKey wk = p.register(serv, StandardWatchEventKinds.ENTRY_CREATE);
